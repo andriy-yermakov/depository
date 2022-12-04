@@ -10,4 +10,5 @@ fi
 echo ">> Deploying contract"
 
 # https://docs.near.org/tools/near-cli#near-dev-deploy
-near dev-deploy --wasmFile ./target/wasm32-unknown-unknown/release/hello_near.wasm
+near deploy --accountId depository.andrii_yer.testnet --wasmFile ./target/wasm32-unknown-unknown/release/depository.wasm
+# --initFunction new --initArgs '{"deposit_account": "balance.andrii_yer.testne"}'

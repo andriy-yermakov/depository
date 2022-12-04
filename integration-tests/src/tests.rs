@@ -1,6 +1,6 @@
-use std::{env, fs};
 use near_units::parse_near;
 use serde_json::json;
+use std::{env, fs};
 use workspaces::{Account, Contract};
 
 #[tokio::main]
@@ -14,53 +14,60 @@ async fn main() -> anyhow::Result<()> {
 
     // create accounts
     let account = worker.dev_create_account().await?;
+    let deposit_account = account
+        .create_subaccount("deposit_account")
+        .initial_balance(parse_near!("1 N"))
+        .transact()
+        .await?
+        .into_result()?;
+
     let alice = account
-        .create_subaccount( "alice")
+        .create_subaccount("alice")
         .initial_balance(parse_near!("30 N"))
         .transact()
         .await?
         .into_result()?;
 
-    // begin tests
-    test_default_message(&alice, &contract).await?;
-    test_changes_message(&alice, &contract).await?;
-    Ok(())
-}
-
-async fn test_default_message(
-    user: &Account,
-    contract: &Contract,
-) -> anyhow::Result<()> {
-    let message: String = user
-        .call( contract.id(), "get_greeting")
-        .args_json(json!({}))
-        .transact()
-        .await?
-        .json()?;
-
-    assert_eq!(message, "Hello".to_string());
-    println!("      Passed ✅ gets default message");
-    Ok(())
-}
-
-async fn test_changes_message(
-    user: &Account,
-    contract: &Contract,
-) -> anyhow::Result<()> {
-    user.call(contract.id(), "set_greeting")
-        .args_json(json!({"message": "Howdy"}))
+    // init contract
+    contract
+        .as_account()
+        .call(contract.id(), "new")
+        .args_json(json!({ "deposit_account": deposit_account.id() }))
         .transact()
         .await?
         .into_result()?;
 
-    let message: String = user
-        .call(contract.id(), "get_greeting")
+    // begin tests
+    test_deposit_odd(&alice, &contract).await?;
+    test_deposit_even(&alice, &contract).await?;
+    Ok(())
+}
+
+async fn test_deposit_odd(user: &Account, contract: &Contract) -> anyhow::Result<()> {
+    let result: bool = user
+        .call(contract.id(), "deposit")
         .args_json(json!({}))
+        .deposit(1)
         .transact()
         .await?
         .json()?;
 
-    assert_eq!(message, "Howdy".to_string());
-    println!("      Passed ✅ changes message");
+    assert_eq!(result, false);
+    println!("      Passed ✅ deposit_odd");
+
+    Ok(())
+}
+
+async fn test_deposit_even(user: &Account, contract: &Contract) -> anyhow::Result<()> {
+    let result: bool = user
+        .call(contract.id(), "deposit")
+        .args_json(json!({}))
+        .deposit(2)
+        .transact()
+        .await?
+        .json()?;
+
+    assert_eq!(result, true);
+    println!("      Passed ✅ deposit_even");
     Ok(())
 }
